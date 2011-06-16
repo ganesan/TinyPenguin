@@ -153,10 +153,10 @@ function initHills()
 		createHill()
 	end
 end
-
+--
 -- Creates one hill
--- Code borrowed from: http://www.cocos2d-iphone.org/forum/topic/14136/page/3
--- Thanks to  dmanrj and my email: pietro.galassi@gmail.com for the code 
+-- Code thanks to  dmanrj and my email: pietro.galassi@gmail.com for the code 
+-- 
 function createHill()
 	
 	local physicsBodyHeight = 30
