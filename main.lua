@@ -13,7 +13,7 @@ require ("physics")
 
 physics.start()
 physics.setGravity(0,9.8)
-physics.setDrawMode("hybrid")
+-- physics.setDrawMode("hybrid")
 
 local mainGroup = display.newGroup()
 
