@@ -11,8 +11,6 @@
 
 require ("physics")
 
-
-
 physics.start()
 physics.setGravity(0,9.8)
 physics.setDrawMode("hybrid")
@@ -36,9 +34,9 @@ local sideBuffer = display.contentWidth
 local hillOffSet =  -sideBuffer
 
 local bird
-local birdRadius = 10
+local birdRadius = 18
 local birdFixedCoordX = display.contentWidth / 5
-local minBirdHorzVel = 150--display.contentWidth / 10
+local minBirdHorzVel = 350--display.contentWidth / 10
 local birdAppliedForce = 0.15
 
 local hillHeight = 40
@@ -73,8 +71,9 @@ end
 
 function initBird()
 	bird = display.newImage( "penguin.png", birdFixedCoordX, 300)
-	physics.addBody(bird, "dynamic", {friction=0, bounce=0.0, radius=birdRadius})
+	physics.addBody(bird, "dynamic", {friction=0, bounce=0.1, radius=birdRadius})
 	mainGroup:insert(bird)	
+	bird.isFixedRotation = false
 	
 	local onScreenTouch = function(event)
 		if(event.phase == "began") then
@@ -85,26 +84,90 @@ function initBird()
 			fingerDown = false
 		end
 	end
+	
+	bird.x1 = false
+	bird.x2 = false
+	bird.y1 = false
+	bird.y2 = false
+	bird.colName = false
+
+	bird.isHit = function( x1 , x2 , y1 , y2 , colName )
+	
+		bird.x1 = x1
+		bird.x2 = x2
+		bird.y1 = y1
+		bird.y2 = y2
+		bird.colName = colName
+	
+	end
+	
+	bird.endHit = function( colName )
+	
+		if colName == bird.colName then
+			bird.x1 = false
+			bird.x2 = false
+			bird.y1 = false
+			bird.y2 = false
+			bird.colName = false
+		end
+	
+	end
 
 	
 	-- Makes the bird move at a min rate horizontally 
 	local moveBirdHorz = function(event)
-		local xVel, yVel = bird:getLinearVelocity()
-
-	
-		if(xVel < minBirdHorzVel) then
-			bird:setLinearVelocity(minBirdHorzVel,yVel)	
-		end
 		
-		if(fingerDown == true) then
-			bird:applyForce( 0, birdAppliedForce, bird.x, bird.y )
-		end
+		-- Touching Ground
+		if bird.x1 ~= false then
 		
-		local birdAngle = math.atan2((yVel) , (xVel) ) * (180 / math.pi)
-		bird.rotation = birdAngle
-			-- transition.to(bird, {rotation = 720, time = 1500})
+			-- Matt - First Get Current Velocity
+			local xVel, yVel = bird:getLinearVelocity()
+			local vel = math.sqrt ( ( xVel * xVel ) + ( yVel * yVel ) )
 			
-		print ("bird.rotation = ", bird.rotation)
+			-- Calculate Slope Of Ground
+			local birdAngle = -( math.atan2( bird.y1 - bird.y2 , bird.x1 - bird.x2 ) * ( 180 / math.pi ) )
+			
+			-- Rotate Bird
+			bird.rotation = birdAngle
+			
+			--if ( vel < minBirdHorzVel ) then
+				-- Matt - Calculate X Velocity Based On Bird Direction
+				local newXVel = ( math.sin( ( birdAngle - 5 ) * math.pi / 180 ) * minBirdHorzVel )
+				local newYVel = ( math.cos( ( birdAngle - 5 ) * math.pi / 180 ) * minBirdHorzVel )
+				-- Matt - Apply New Velocity To Bird
+				bird:setLinearVelocity( newYVel , newXVel )
+				
+			--end
+		
+		else
+		
+			-- Matt - First Get Current Velocity
+			local xVel, yVel = bird:getLinearVelocity()
+
+			-- Matt - Calculate Angle Of Travel
+			local birdAngle = math.atan2( yVel , xVel ) * ( 180 / math.pi )
+			
+			-- Rotate Bird
+			bird.rotation = birdAngle
+			
+			-- Matt - Calculate Velocity of Travel
+			local vel = math.sqrt ( ( xVel * xVel ) + ( yVel * yVel ) )
+			--print ( vel )
+		
+			-- Matt - Check Min Velocity Against Actual Velocity
+			if ( vel < minBirdHorzVel ) then
+			
+				-- Matt - Calculate X Velocity Based On Bird Direction
+				local newXVel = ( math.sin( birdAngle * math.pi / 180 ) * minBirdHorzVel )
+				local newYVel = ( math.cos( birdAngle * math.pi / 180 ) * minBirdHorzVel )
+			
+				-- Matt - Apply New Velocity To Bird
+				--bird:setLinearVelocity( newYVel , newXVel )
+
+			end
+		
+		end
+		
 	end
 	
 	Runtime:addEventListener("touch", onScreenTouch)
@@ -153,10 +216,9 @@ function initHills()
 		createHill()
 	end
 end
---
+
 -- Creates one hill
--- Code thanks to  dmanrj and my email: pietro.galassi@gmail.com for the code 
--- 
+-- Code borrowed from: http://www.cocos2d-iphone.org/forum/topic/14136/page/3
 function createHill()
 	
 	local physicsBodyHeight = 30
@@ -182,7 +244,7 @@ function createHill()
 	local lineGroup = display.newGroup()
 	mainGroup:insert(lineGroup, 0)
 	
-	local angleStep = 20 -- magic number ! multiple of 360 otherwise tons of chopiness 
+	local angleStep = 20
 		
 	local angle
 	for angle = angleStep, 360, angleStep do
@@ -208,6 +270,13 @@ function createHill()
 			table.insert(points, x2)
 			table.insert(points, hillYPosition - h_height + y2)
 			
+			
+			-- Matt - Capturing values
+			local startX = x2
+			local startY = hillYPosition - h_height + y1
+			local endX = x1
+			local endY = hillYPosition - h_height + y2
+			
 			local fillAngle
 			local fillX1, fillY2
 			local fillX2, fillX2
@@ -228,11 +297,31 @@ function createHill()
 				
 			end
 			
-			physics.addBody(rect, "static", {w=0, bounce=.0, shape=points})
+			physics.addBody(rect, "static", {w=0, bounce=0.0, shape=points})
 			mainGroup:insert(rect)
 			table.insert(objects, rect)
 			
 			rect.xPos = x2
+			
+			rect.name = "col_"..x1
+			-- Collision Handler
+			rect.collision = function( self , event )
+		
+				-- On Collision
+				if ( event.phase == "began" ) then
+			
+					event.other.isHit( startX , endX , startY , endY, rect.name )
+	
+				end
+				
+				if ( event.phase == "ended" ) then
+			
+					event.other.endHit(rect.name)
+	
+				end
+	
+			end
+			rect:addEventListener( "collision" , rect )
 
 			x1 = x2
 			y1 = y2	
